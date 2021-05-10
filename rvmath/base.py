@@ -48,13 +48,13 @@ def ecdf(x):
     return xs, ys
 
 
-def eval_value(value, realization, size, random_state):
+def eval_value(value, realization):
     """Helper to dispatch the evaluation of (maybe) RVMixin values
 
-    See RVMixin.eval for help on `realization`, `size`, and `random_state`.
+    See RVMixin.eval for help on `realization`.
     """
     if isinstance(value, RVMixin):
-        return value.eval(realization, size, random_state)
+        return value.eval(realization)
     return value
 
 
@@ -71,19 +71,13 @@ class RVMixin:
         """
         raise NotImplementedError
 
-    def eval(self, realization, size, random_state):
+    def eval(self, realization):
         """Evaluate this expression given a realization of its random variables.
 
         Parameters
         ----------
         realization : Dict[str, np.ndarray or Number]
             Dictionary mapping random variable id to a realization.
-        size : int or tuple of ints, optional
-            Defining number of random variates (default is 1).
-        random_state : None, int, RandomState, Generator, optional
-            If seed is None the RandomState singleton is used. If seed is an int,
-            a new RandomState instance is used, seeded with seed. If seed is already
-            a RandomState or Generator instance, then that object is used. Default is None.
 
         Returns
         -------
@@ -113,7 +107,7 @@ class RVMixin:
         ndarray or number
             Random variates of given size.
         """
-        return self.eval(self.draw(size, random_state), size, random_state)
+        return self.eval(self.draw(size, random_state))
 
     def to_distro(self, name, n=1_000_000, **kwargs):
         """Converts the current expression into a Random Variable Continuous distribution.
@@ -208,7 +202,7 @@ class ArgLessFunction(OperatorMixin, RVMixin):
 
     func: ty.Callable
 
-    def eval(self, realization, size, random_state):
+    def eval(self, realization):
         return self.func()
 
 
@@ -230,14 +224,9 @@ class WithArg:
             if isinstance(v, RVMixin):
                 yield from v.random_vars()
 
-    def get_args_kwds(self, realization, size, random_state):
-        args = tuple(
-            eval_value(arg, realization, size, random_state) for arg in self.args
-        )
-        kwds = {
-            k: eval_value(v, realization, size, random_state)
-            for k, v in self.kwds.items()
-        }
+    def get_args_kwds(self, realization):
+        args = tuple(eval_value(arg, realization) for arg in self.args)
+        kwds = {k: eval_value(v, realization) for k, v in self.kwds.items()}
         return args, kwds
 
 
@@ -245,8 +234,8 @@ class WithArg:
 class Function(WithArg, ArgLessFunction):
     """A function that can handles arguments and keyword arguments."""
 
-    def eval(self, realization, size, random_state):
-        args, kwds = self.get_args_kwds(realization, size, random_state)
+    def eval(self, realization):
+        args, kwds = self.get_args_kwds(realization)
 
         return self.func(*args, **kwds)
 
@@ -261,7 +250,7 @@ class RandomVariable(OperatorMixin, RVMixin):
     def random_vars(self):
         yield self.rvid, self.distro
 
-    def eval(self, realization, size, random_state):
+    def eval(self, realization):
         return realization[self.rvid]
 
     def __str__(self):
@@ -278,15 +267,16 @@ class DependentRandomVariable(WithArg, RandomVariable):
     (e.g. it's mean value is drawn from another ramdom variable).
     """
 
-    def eval(self, realization, size, random_state):
+    def eval(self, realization):
         if self.rvid in realization:
             return realization[self.rvid]
 
-        args, kwds = self.get_args_kwds(realization, size, random_state)
+        # TODO: Here the size would need to be explicitly given
+        # as it might not be the same size of the outside distro
 
-        realization[self.rvid] = out = self.distro(*args, **kwds).rvs(
-            size, random_state
-        )
+        args, kwds = self.get_args_kwds(realization)
+
+        realization[self.rvid] = out = self.distro(*args, **kwds).rvs()
 
         return out
 
@@ -309,8 +299,8 @@ class UnaryOp(OperatorMixin, RVMixin):
         if isinstance(self.value, RVMixin):
             yield from self.value.random_vars()
 
-    def eval(self, realization, size, random_state):
-        return self.op(eval_value(self.value, realization, size, random_state))
+    def eval(self, realization):
+        return self.op(eval_value(self.value, realization))
 
     def __str__(self):
         return _OP_STR[self.op] + str(self.value)
@@ -331,10 +321,10 @@ class BinaryOp(OperatorMixin, RVMixin):
         if isinstance(self.value2, RVMixin):
             yield from self.value2.random_vars()
 
-    def eval(self, realization, size, random_state):
+    def eval(self, realization):
         return self.op(
-            eval_value(self.value1, realization, size, random_state),
-            eval_value(self.value2, realization, size, random_state),
+            eval_value(self.value1, realization),
+            eval_value(self.value2, realization),
         )
 
     def __str__(self):
