@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 
-def __dir__():
+def __dir__():  # pragma: no cover
     from scipy.stats import _continuous_distns
 
     return _continuous_distns._distn_names + ["One"]

@@ -116,7 +116,7 @@ class RVMixin:
         # This weird construction is a way to create
         # an empty generator.
         return
-        yield
+        yield  # pragma: no cover
 
     def eval(self, realization):
         """Evaluate this expression given a realization of its random variables.
