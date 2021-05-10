@@ -23,18 +23,20 @@
 rvmath: math with random variables, the easy way
 ================================================
 
-`rvmath` is a Python package to build and evaluate
+**rvmath** is a Python package to build and evaluate
 mathematical expressions involving random variables.
 
 Do you want to draw 10 values from a distribution resulting
-from `a * cos(b + c)` where `a ~ Poisson`, `b ~ Uniform`,
-and `c ~ Normal`? No problem:
+from ``a * cos(b + c)`` where ``a ~ Poisson``, ``b ~ Uniform``,
+and ``c ~ Normal``? No problem:
+
+.. code-block:: python
 
     >>> import rvmath as rvm
     >>> z = rvm.poisson(mu=5) * np.cos(rvm.uniform() + rvm.norm())
     >>> z.rvs(10)
 
-It runs in Python 3.8+ depending on NumPy_ and SciPy_.
+It runs in Python 3.7+ depending on NumPy_ and SciPy_.
 It is licensed under BSD.
 
 It is extremely easy and natural to use:
@@ -50,15 +52,15 @@ It is extremely easy and natural to use:
     >>> z.rvs(3)  #doctest: +SKIP
     [-0.33095289 -0.08664128  0.09938225]
 
-Briefly, `x` and `y` are random variables drawn from a uniform distribution.
-`z` is a random variable drawn from a distribution obtained by subtracting
-two uniform distributions. `z.rvs(3)` draw 3 values from such distribution.
+Briefly, ``x`` and ``y`` are random variables drawn from a uniform distribution.
+``z`` is a random variable drawn from a distribution obtained by subtracting
+two uniform distributions. ``z.rvs(3)`` draw 3 values from such distribution.
 
-Behind the scenes, `probalc` calls `SciPy Stats`_ to generate random variates
-of all random variables and perform all necessary calculations.
+Behind the scenes, **rvmath** generate random variates of all random variables
+and perform all necessary calculations.
 
-`rvmath` builds upon `Scipy Stats`_ and therefore all continuous distributions
-available there are also here, with the same name and arguments. `rvs` also follows
+**rvmath** builds upon `Scipy Stats`_ and therefore all continuous distributions
+available there are also here, with the same name and arguments. ``rvs`` also follows
 the same API, namely:
 
     - **size**: int or tuple of ints, optional
@@ -91,13 +93,13 @@ Finally, you can convert the expression into a SciPy distribution:
 
     >>> distro = c.to_distro(name="my_distro")
 
-with useful methods such as `rvs`, `pdf`, `cdf`, available.
+to obtain an object with useful methods such as ``rvs``, ``pdf``, ``cdf`` and others.
 
 
 Quick Installation
 ------------------
 
-To install rvmath, simply (*soon*):
+To install **rvmath**, simply (*soon*):
 
 .. code-block:: bash
 
@@ -106,9 +108,57 @@ To install rvmath, simply (*soon*):
 and then simply enjoy it!
 
 
+Other functionality
+-------------------
+
+All `rvmath` objects have a few useful options:
+
+You can assign an id to the random variable:
+
+.. code-block:: python
+
+    >>> x = rvm.uniform(rvid="x")
+
+to simplify debugging. If ``rvid`` is not given, a random string
+will be generated.
+
+You can ask for dict containing all random variable names and their
+underlying SciPy distribution objects.
+
+.. code-block:: python
+
+    >>> x = rvm.uniform(rvid="x")
+    >>> y = rvm.norm(rvid="y")
+    >>> z = x + y
+    >>> dict(z.random_vars())
+    {'x': <scipy.stats._distn_infrastructure.rv_frozen at 0x7ff57f196220>,
+    'y': <scipy.stats._distn_infrastructure.rv_frozen at 0x7ff57e5a81f0>}
+
+
+You can draw values from all random variables within an object.
+
+.. code-block:: python
+
+    >>> realization = z.draw(3)
+    >>> print(realization)
+    {'x': array([0.75633395, 0.99657116, 0.26853511]),
+     'y': array([-1.23407414,  0.5261816 ,  2.62764828])}
+
+
+and finally you can evaluate the object for this particular realization.
+
+.. code-block:: python
+
+    >>> z.eval(realization)
+    array([-0.47774019,  1.52275276,  2.89618339])
+
+This is exactly what happens when ``rvs` is called, but it can be particularly
+useful for debugging, testing and evaluating subexpressions.
+
+
 ----
 
-rvmath is maintained by a community. See AUTHORS_ for a complete list.
+**rvmath** is maintained by a community. See AUTHORS_ for a complete list.
 
 To review an ordered list of notable changes for each version of a project,
 see CHANGES_
