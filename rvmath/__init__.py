@@ -37,20 +37,23 @@ def __getattr__(name):
 
     def builder(*args, **kwargs):
         rvid = kwargs.pop("rvid", None)
+        size = kwargs.pop("size", None)
 
         if any(isinstance(a, RandomVariable) for a in it.chain(args, kwargs.values())):
             if rvid is None:
-                return DependentRandomVariable(parent, args=args, kwds=kwargs)
+                return DependentRandomVariable(
+                    parent, size=size, args=args, kwds=kwargs
+                )
             else:
                 return DependentRandomVariable(
-                    parent, rvid=rvid, args=args, kwds=kwargs
+                    parent, size=size, rvid=rvid, args=args, kwds=kwargs
                 )
 
         distro = parent(*args, **kwargs)
 
         if rvid is None:
-            return RandomVariable(distro)
+            return RandomVariable(distro, size=size)
         else:
-            return RandomVariable(distro, rvid=rvid)
+            return RandomVariable(distro, size=size, rvid=rvid)
 
     return builder

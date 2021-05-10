@@ -88,7 +88,8 @@ class RVMixin:
     def draw(self, size=1, random_state=None):
         """Draw values for the random variables within this expression."""
         return {
-            rvid: distro.rvs(size, random_state) for rvid, distro in self.random_vars()
+            rvid: distro.rvs(sz or size, random_state)
+            for rvid, (distro, sz) in self.random_vars()
         }
 
     def rvs(self, size=1, random_state=None):
@@ -245,10 +246,11 @@ class RandomVariable(OperatorMixin, RVMixin):
     """A random variable."""
 
     distro: stats.rv_continuous
+    size: ty.Optional[numbers.Integral] = None
     rvid: str = field(default_factory=lambda: secrets.token_hex(nbytes=RVID_NBYTES))
 
     def random_vars(self):
-        yield self.rvid, self.distro
+        yield self.rvid, (self.distro, self.size)
 
     def eval(self, realization):
         return realization[self.rvid]

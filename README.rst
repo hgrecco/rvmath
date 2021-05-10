@@ -111,7 +111,7 @@ and then simply enjoy it!
 Other functionality
 -------------------
 
-All `rvmath` objects have a few useful options:
+All **rvmath** objects have a few useful options and methods:
 
 You can assign an id to the random variable:
 
@@ -132,7 +132,7 @@ underlying SciPy distribution objects.
     >>> z = x + y
     >>> dict(z.random_vars())
     {'x': <scipy.stats._distn_infrastructure.rv_frozen at 0x7ff57f196220>,
-    'y': <scipy.stats._distn_infrastructure.rv_frozen at 0x7ff57e5a81f0>}
+     'y': <scipy.stats._distn_infrastructure.rv_frozen at 0x7ff57e5a81f0>}
 
 
 You can draw values from all random variables within an object.
@@ -152,8 +152,17 @@ and finally you can evaluate the object for this particular realization.
     >>> z.eval(realization)
     array([-0.47774019,  1.52275276,  2.89618339])
 
-This is exactly what happens when ``rvs` is called, but it can be particularly
+This is exactly what happens when ``rvs`` is called, but it can be particularly
 useful for debugging, testing and evaluating subexpressions.
+
+
+In certain cases you might want to predefine the size of certain random variable.
+You can do it using the ``size`` parameter upon construction.
+
+.. code-block:: python
+
+    >>> z = np.sum(rvm.uniform(size=(3, 3))) * rvm.norm()
+
 
 
 ----

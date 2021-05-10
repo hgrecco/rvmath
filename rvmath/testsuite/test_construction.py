@@ -13,7 +13,16 @@ def test_distro():
     calc = rvm.uniform(0, 1)
 
     assert calc.rvid is not None
+    assert calc.size is None
     npt.assert_equal(ref.rvs(100, random_state=1234), calc.rvs(100, random_state=1234))
+
+
+def test_size():
+    ref = stats.uniform(0, 1)
+    calc = rvm.uniform(0, 1, size=2)
+    assert calc.rvid is not None
+    assert calc.size == 2
+    npt.assert_equal(ref.rvs(2, random_state=1234), calc.rvs(random_state=1234))
 
 
 def test_distro_id():
@@ -52,3 +61,14 @@ def test_numpy_ufunc():
     assert pb.Function(np.cos, (calc,), dict(casting="same")) == np.cos(
         calc, casting="same"
     )
+
+
+def test_combined_size_and_unsized():
+    calc = np.sum(rvm.uniform(size=(3, 3), rvid="x33")) * rvm.norm(
+        rvid="x"
+    ) + rvm.uniform(rvid="y")
+    d = calc.draw(2)
+    assert d["x33"].shape == (3, 3)
+    assert d["x"].shape == (2,)
+    assert d["y"].shape == (2,)
+    assert len(calc.rvs(2)) == 2
