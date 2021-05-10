@@ -44,3 +44,11 @@ def test_numpy_function():
     assert pb.Function(np.sum, (calc,), {}) == np.sum(calc)
     assert pb.Function(np.sum, (calc, 1), {}) == np.sum(calc, 1)
     assert pb.Function(np.sum, (calc,), dict(axis=1)) == np.sum(calc, axis=1)
+
+
+def test_numpy_ufunc():
+    calc = rvm.uniform(0, 1, rvid="calc")
+    assert pb.Function(np.cos, (calc,), {}) == np.cos(calc)
+    assert pb.Function(np.cos, (calc,), dict(casting="same")) == np.cos(
+        calc, casting="same"
+    )
