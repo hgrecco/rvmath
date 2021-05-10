@@ -2,7 +2,7 @@ import operator
 
 import numpy as np
 import scipy.stats as stats
-from numpy import testing as nt
+from numpy import testing as npt
 
 import rvmath as rvm
 from rvmath import base as pb
@@ -13,7 +13,7 @@ def test_distro():
     calc = rvm.uniform(0, 1)
 
     assert calc.rvid is not None
-    nt.assert_equal(ref.rvs(100, random_state=1234), calc.rvs(100, random_state=1234))
+    npt.assert_equal(ref.rvs(100, random_state=1234), calc.rvs(100, random_state=1234))
 
 
 def test_distro_id():
@@ -21,7 +21,7 @@ def test_distro_id():
     calc = rvm.uniform(0, 1, rvid="calc")
 
     assert calc.rvid == "calc"
-    nt.assert_equal(ref.rvs(100, random_state=1234), calc.rvs(100, random_state=1234))
+    npt.assert_equal(ref.rvs(100, random_state=1234), calc.rvs(100, random_state=1234))
 
 
 def test_expression():

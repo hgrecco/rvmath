@@ -1,12 +1,19 @@
 import pytest
 import scipy.stats as stats
+from numpy import testing as npt
 
 import rvmath as rvm
 
 
 def check_distribution(rvs, cdf):
+    alpha = 0.01
     st, pval = stats.kstest(rvs, cdf, N=1_000)
-    assert pval > 0.01
+    if pval < alpha:
+        D, pval = stats.kstest(rvs, cdf, N=1_000)
+        npt.assert_(
+            pval > alpha,
+            "D = " + str(D) + "; pval = " + str(pval) + "; alpha = " + str(alpha),
+        )
 
 
 @pytest.mark.parametrize(
