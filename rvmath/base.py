@@ -58,6 +58,49 @@ def eval_value(value, realization):
     return value
 
 
+def any_none(els):
+    """Return True if any of the elements is None."""
+    return any(el is None for el in els)
+
+
+def combine_size(distro_size, size):
+    """Combine distribution and user size according to certain rules.
+
+    Parameters
+    ----------
+    distro_size : None, int or tuple of int or None
+        Size assigned to the distribution.
+    size : int or tuple of int
+        Size provided to the `rvs`.
+
+    Returns
+    -------
+    int or tuple of int
+    """
+
+    if size is None:
+        raise ValueError("'size' cannot be None.")
+    elif isinstance(size, tuple):
+        if any_none(size):
+            raise ValueError("'size' cannot contain None.")
+
+    if distro_size is None:
+        return size
+
+    elif isinstance(distro_size, tuple) and isinstance(size, tuple):
+        if any_none(distro_size):
+            raise ValueError(
+                "A distribution 'distro_size' cannot contain None "
+                "when the 'rvs' distro_size is a tuple."
+            )
+        return distro_size
+
+    elif isinstance(distro_size, tuple) and isinstance(size, int):
+        return tuple(el or size for el in distro_size)
+
+    return distro_size
+
+
 class RVMixin:
     """Mixin for classes that are or can contain random variables."""
 
@@ -69,7 +112,11 @@ class RVMixin:
         str, stats.rv_continuous
             variable name, distribution
         """
-        raise NotImplementedError
+
+        # This weird construction is a way to create
+        # an empty generator.
+        return
+        yield
 
     def eval(self, realization):
         """Evaluate this expression given a realization of its random variables.
@@ -88,7 +135,7 @@ class RVMixin:
     def draw(self, size=1, random_state=None):
         """Draw values for the random variables within this expression."""
         return {
-            rvid: distro.rvs(sz or size, random_state)
+            rvid: distro.rvs(combine_size(sz, size), random_state)
             for rvid, (distro, sz) in self.random_vars()
         }
 
@@ -208,7 +255,7 @@ class ArgLessFunction(OperatorMixin, RVMixin):
 
 
 @dataclass(frozen=True)
-class WithArg:
+class WithArg(RVMixin):
     """Add arguments and keyword arguments handling to
     other dataclass
     """
@@ -217,6 +264,7 @@ class WithArg:
     kwds: ty.Dict[str, ty.Any] = field(default_factory=dict)
 
     def random_vars(self):
+        yield from super().random_vars()
         for arg in self.args:
             if isinstance(arg, RVMixin):
                 yield from arg.random_vars()
@@ -268,19 +316,6 @@ class DependentRandomVariable(WithArg, RandomVariable):
     """A random variable that depends on other random variables
     (e.g. it's mean value is drawn from another ramdom variable).
     """
-
-    def eval(self, realization):
-        if self.rvid in realization:
-            return realization[self.rvid]
-
-        # TODO: Here the size would need to be explicitly given
-        # as it might not be the same size of the outside distro
-
-        args, kwds = self.get_args_kwds(realization)
-
-        realization[self.rvid] = out = self.distro(*args, **kwds).rvs()
-
-        return out
 
     def __str__(self):
         obj = self.distro

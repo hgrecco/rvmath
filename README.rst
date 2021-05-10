@@ -163,6 +163,26 @@ You can do it using the ``size`` parameter upon construction.
 
     >>> z = np.sum(rvm.uniform(size=(3, 3))) * rvm.norm()
 
+Random variables without an explicit size parameters will be evaluated to the size
+given when calling ``rvs``.
+
+Together with this feature, you can build distributions that depend on others:
+
+.. code-block:: python
+
+    >>> m = rvm.uniform(size=1)
+    >>> w = rvm.norm(loc=m)
+
+
+You can combine distribution defined size with ``rvs`` provided size
+
+.. code-block:: python
+
+    >>> m = rvm.uniform(size=(None, 3, None)).rvs(2)
+    >>> m.shape
+    (2, 3, 2)
+
+``None`` values will be replaced by scalars provided to ``rvs``.
 
 
 ----
