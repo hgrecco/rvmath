@@ -15,45 +15,20 @@ from __future__ import annotations
 def __dir__():  # pragma: no cover
     from scipy.stats import _continuous_distns
 
-    return _continuous_distns._distn_names + ["One"]
+    return _continuous_distns._distn_names + ["wrap"]
 
 
 def __getattr__(name):
-    from .base import DependentRandomVariable, One, RandomVariable
-
-    if name == "One":
-        return One
-
-    import itertools as it
-
     from scipy import stats
 
-    parent = getattr(stats, name, None)
+    from .base import builder, wrap
 
-    if parent is None:
+    if name == "wrap":
+        return wrap
+
+    distro_cls = getattr(stats, name, None)
+
+    if distro_cls is None:
         raise AttributeError(f"module 'rvmath' has no attribute '{name}'")
 
-    # Check if this is a continuous distribution
-
-    def builder(*args, **kwargs):
-        rvid = kwargs.pop("rvid", None)
-        size = kwargs.pop("size", None)
-
-        if any(isinstance(a, RandomVariable) for a in it.chain(args, kwargs.values())):
-            if rvid is None:
-                return DependentRandomVariable(
-                    parent, size=size, args=args, kwds=kwargs
-                )
-            else:
-                return DependentRandomVariable(
-                    parent, size=size, rvid=rvid, args=args, kwds=kwargs
-                )
-
-        distro = parent(*args, **kwargs)
-
-        if rvid is None:
-            return RandomVariable(distro, size=size)
-        else:
-            return RandomVariable(distro, size=size, rvid=rvid)
-
-    return builder
+    return builder(distro_cls)

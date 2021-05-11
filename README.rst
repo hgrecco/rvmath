@@ -185,6 +185,22 @@ You can combine distribution defined size with ``rvs`` provided size
 ``None`` values will be replaced by scalars provided to ``rvs``.
 
 
+FAQ
+---
+
+1. **Which distributions are supported by rvmath?**
+
+   All continuous distributions available in Scipy, you can read the
+   list in the `SciPy Stats`_ docs.
+
+2. **Do you plan tu support discrete distributions?**
+
+   Yes, hopefully in the next version.
+
+3. **I have built my own distribution subclassing ``rv_continuous``, can I use it with rvmath?**
+
+   Yes, just call ``rvm.wrap(distro, *args, **kwargs)``
+
 ----
 
 **rvmath** is maintained by a community. See AUTHORS_ for a complete list.

@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import itertools as it
 import numbers
 import operator
 import secrets
@@ -29,6 +30,48 @@ _OP_STR = {
     operator.pos: "+",
     operator.neg: "-",
 }
+
+
+def builder(distro_cls):
+    """Creates a hungry wrapper function.
+
+    Parameters
+    ----------
+    distro_cls : rv_continuous
+        A SciPy distribution
+
+    """
+
+    # Check if this is a continuous distribution?
+
+    def _inner(*args, **kwargs):
+        rvid = kwargs.pop("rvid", None)
+        size = kwargs.pop("size", None)
+
+        if any(isinstance(a, RandomVariable) for a in it.chain(args, kwargs.values())):
+            if rvid is None:
+                return DependentRandomVariable(
+                    distro_cls, size=size, args=args, kwds=kwargs
+                )
+            else:
+                return DependentRandomVariable(
+                    distro_cls, size=size, rvid=rvid, args=args, kwds=kwargs
+                )
+
+        distro = distro_cls(*args, **kwargs)
+
+        if rvid is None:
+            return RandomVariable(distro, size=size)
+        else:
+            return RandomVariable(distro, size=size, rvid=rvid)
+
+    return _inner
+
+
+def wrap(distro_cls, *args, **kwargs):
+    """Wrap a SciPy Stats distribution with rvmath class"""
+
+    return builder(distro_cls)(*args, **kwargs)
 
 
 def ecdf(x):
