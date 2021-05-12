@@ -147,13 +147,25 @@ def combine_size(distro_size, size):
 class RVMixin:
     """Mixin for classes that are or can contain random variables."""
 
-    def random_vars(self) -> ty.Tuple[str, stats.rv_continuous]:
+    def random_vars(self) -> ty.Generator[ty.Tuple[str, stats.rv_continuous]]:
         """Yields all random variables and their distributions within this expression.
 
         Yields
         ------
         str, stats.rv_continuous
             variable name, distribution
+        """
+
+        for rvid, obj in self.random_objs():
+            yield rvid, (obj.distro, obj.size)
+
+    def random_objs(self) -> ty.Generator[ty.Tuple[str, RandomVariable]]:
+        """Yield all random rvmath object within this expression.
+
+        Yields
+        ------
+        str, RandomVariable
+
         """
 
         # This weird construction is a way to create
@@ -175,12 +187,37 @@ class RVMixin:
         """
         raise NotImplementedError
 
-    def draw(self, size=1, random_state=None):
+    def draw(
+        self, size=1, random_state=None
+    ) -> ty.Dict[str, np.ndarray or numbers.Number]:
         """Draw values for the random variables within this expression."""
-        return {
-            rvid: distro.rvs(combine_size(sz, size), random_state)
-            for rvid, (distro, sz) in self.random_vars()
+
+        robjs = dict(self.random_objs())
+
+        # We first evaluate the non-dependent distributions.
+        realization = {
+            rvid: obj.distro.rvs(combine_size(obj.size, size), random_state)
+            for rvid, obj in self.random_objs()
+            if not isinstance(obj, DependentRandomVariable)
         }
+
+        # Then we build a dependency graph.
+        deps = {
+            rvid: set(_rvid for _rvid, _ in obj.children_random_objs())
+            for rvid, obj in robjs.items()
+            if isinstance(obj, DependentRandomVariable)
+        }
+
+        for layer in solve_dependencies(deps):
+            for rvid in layer:
+                cur = robjs[rvid]
+                sz = combine_size(cur.size, size)
+                if isinstance(cur, DependentRandomVariable):
+                    realization[rvid] = cur.freeze(realization).rvs(sz, random_state)
+                else:
+                    realization[rvid] = cur.distro.rvs(sz, random_state)
+
+        return realization
 
     def rvs(self, size=1, random_state=None):
         """
@@ -306,15 +343,18 @@ class WithArg(RVMixin):
     args: ty.Tuple[ty.Any] = field(default_factory=tuple)
     kwds: ty.Dict[str, ty.Any] = field(default_factory=dict)
 
-    def random_vars(self):
-        yield from super().random_vars()
+    def random_objs(self):
+        yield from super().random_objs()
+        yield from self.children_random_objs()
+
+    def children_random_objs(self):
         for arg in self.args:
             if isinstance(arg, RVMixin):
-                yield from arg.random_vars()
+                yield from arg.random_objs()
 
         for k, v in self.kwds.items():
             if isinstance(v, RVMixin):
-                yield from v.random_vars()
+                yield from v.random_objs()
 
     def get_args_kwds(self, realization):
         args = tuple(eval_value(arg, realization) for arg in self.args)
@@ -340,11 +380,13 @@ class RandomVariable(OperatorMixin, RVMixin):
     size: ty.Optional[numbers.Integral] = None
     rvid: str = field(default_factory=lambda: secrets.token_hex(nbytes=RVID_NBYTES))
 
-    def random_vars(self):
-        yield self.rvid, (self.distro, self.size)
+    def random_objs(self):
+        yield self.rvid, self
 
     def eval(self, realization):
-        return realization[self.rvid]
+        if self.rvid in realization:
+            return realization[self.rvid]
+        return self.distro()
 
     def __str__(self):
         obj = self.distro
@@ -357,8 +399,15 @@ class RandomVariable(OperatorMixin, RVMixin):
 @dataclass(frozen=True)
 class DependentRandomVariable(WithArg, RandomVariable):
     """A random variable that depends on other random variables
-    (e.g. it's mean value is drawn from another ramdom variable).
+    (e.g. it's mean value is drawn from another random variable).
     """
+
+    def eval(self, realization):
+        return realization[self.rvid]
+
+    def freeze(self, realization):
+        args, kwds = self.get_args_kwds(realization)
+        return self.distro(*args, **kwds)
 
     def __str__(self):
         obj = self.distro
@@ -375,9 +424,9 @@ class UnaryOp(OperatorMixin, RVMixin):
     op: ty.Callable
     value: Operand
 
-    def random_vars(self):
+    def random_objs(self):
         if isinstance(self.value, RVMixin):
-            yield from self.value.random_vars()
+            yield from self.value.random_objs()
 
     def eval(self, realization):
         return self.op(eval_value(self.value, realization))
@@ -394,12 +443,12 @@ class BinaryOp(OperatorMixin, RVMixin):
     value1: Operand
     value2: Operand
 
-    def random_vars(self):
+    def random_objs(self):
         if isinstance(self.value1, RVMixin):
-            yield from self.value1.random_vars()
+            yield from self.value1.random_objs()
 
         if isinstance(self.value2, RVMixin):
-            yield from self.value2.random_vars()
+            yield from self.value2.random_objs()
 
     def eval(self, realization):
         return self.op(
@@ -412,3 +461,36 @@ class BinaryOp(OperatorMixin, RVMixin):
 
 
 One = UnaryOp(operator.pos, 1)
+
+
+def solve_dependencies(dependencies):
+    """Solve a dependency graph.
+
+    Parameters
+    ----------
+    dependencies :
+        dependency dictionary. For each key, the value is an iterable indicating its
+        dependencies.
+
+    Returns
+    -------
+    type
+        iterator of sets, each containing keys of independents tasks dependent only of
+        the previous tasks in the list.
+
+    """
+    while dependencies:
+        # values not in keys (items without dep)
+        t = {i for v in dependencies.values() for i in v} - dependencies.keys()
+        # and keys without value (items without dep)
+        t.update(k for k, v in dependencies.items() if not v)
+        # can be done right away
+        if not t:
+            raise ValueError(
+                "Cyclic dependencies exist among these items: {}".format(
+                    ", ".join(repr(x) for x in dependencies.items())
+                )
+            )
+        # and cleaned up
+        dependencies = {k: v - t for k, v in dependencies.items() if v}
+        yield t
