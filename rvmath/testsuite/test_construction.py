@@ -147,17 +147,3 @@ def test_dependent_rv():
     y = rvm.uniform(loc=rvm.uniform(rvid="x"), rvid="y")
     assert set(dict(y.random_vars()).keys()) == {"x", "y"}
     assert len(y.rvs(3)) == 3
-
-
-def test_dependent_rv_size():
-    x = rvm.uniform(rvid="x", size=(2, None))
-    y = rvm.norm(loc=x, rvid="y")
-
-    assert isinstance(y, pb.DependentRandomVariable)
-    assert set(dict(x.random_vars()).keys()) == {"x"}
-    assert set(dict(y.random_vars()).keys()) == {"x", "y"}
-    assert y.rvs(3) == (2, 3)
-
-    y = rvm.uniform(loc=rvm.uniform(rvid="x", size=(2, None)), rvid="y")
-    assert set(dict(y.random_vars()).keys()) == {"x", "y"}
-    assert y.rvs(3) == (2, 3)
