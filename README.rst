@@ -94,6 +94,20 @@ Finally, you can convert the expression into a SciPy distribution:
     >>> distro = c.to_distro(name="my_distro")
 
 to obtain an object with useful methods such as ``rvs``, ``pdf``, ``cdf`` and others.
+The distribution is built by generating 1_000_000 random values from which an
+empirical cumulate distribution function is calculated. Then an interpolator is built
+and used as `cdf`. You can change the number of random values used using the ``n``
+parameter.
+
+You can also generate a discrete distribution using ``discrete=True``.
+
+.. code-block:: python
+
+    >>> c = 2 * rvm.poisson(10)
+    >>> distro = c.to_distro(name="my_distro")
+
+In this case, the frequency of each of the``n`` random values is counted and used to
+generated the `pmf`.
 
 
 Quick Installation
@@ -195,7 +209,8 @@ FAQ
 
 2. **Do you plan tu support discrete distributions?**
 
-   Yes, hopefully in the next version.
+   Yes, hopefully in the next version. But it is already supported in the
+   code available at GitHub.
 
 3. **I have built my own distribution subclassing ``rv_continuous``, can I use it with rvmath?**
 

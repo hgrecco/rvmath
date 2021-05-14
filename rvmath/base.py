@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import collections
 import itertools as it
 import numbers
 import operator
@@ -237,7 +238,7 @@ class RVMixin:
         """
         return self.eval(self.draw(size, random_state))
 
-    def to_distro(self, name, n=1_000_000, **kwargs):
+    def to_distro(self, name, n=1_000_000, discrete=False, **kwargs):
         """Converts the current expression into a Random Variable Continuous distribution.
         (Scipy.stats.rv_continuous).
 
@@ -250,6 +251,9 @@ class RVMixin:
         n : int, optional
             number of random samples to drawn from which the cdf
             is estimated (default: 1_000_000)
+        discrete : bool, optional
+            if True, a discrete distribution (i.e. a subclass from rv_discrete)
+            will be generated (default: False).
         kwargs:
             extra keyword arguments, passed directly to the
             distribution constructors
@@ -257,19 +261,29 @@ class RVMixin:
         """
 
         values = self.rvs(n)
-        itp = scipy.interpolate.interp1d(
-            *ecdf(values),
-            copy=True,
-            bounds_error=False,
-            fill_value=(0, 1),
-            assume_sorted=True,
-        )
 
-        class distro_gen(stats.rv_continuous):
-            def _cdf(self, x):
-                return itp(x)
+        if discrete:
+            xk, pk = zip(*collections.Counter(values).items())
+            xk = np.asarray(xk)
+            pk = np.asarray(pk).astype(np.float64)
+            pk /= np.sum(pk)
+            distro_gen = stats.rv_discrete(name=name, values=(xk, pk), **kwargs)
 
-        return distro_gen(name=name, **kwargs)()
+            return distro_gen()
+        else:
+            itp = scipy.interpolate.interp1d(
+                *ecdf(values),
+                copy=True,
+                bounds_error=False,
+                fill_value=(0, 1),
+                assume_sorted=True,
+            )
+
+            class distro_gen(stats.rv_continuous):
+                def _cdf(self, x):
+                    return itp(x)
+
+            return distro_gen(name=name, **kwargs)()
 
 
 class OperatorMixin:

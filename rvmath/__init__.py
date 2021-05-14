@@ -13,9 +13,9 @@ from __future__ import annotations
 
 
 def __dir__():  # pragma: no cover
-    from scipy.stats import _continuous_distns
+    from scipy.stats import _continuous_distns, _discrete_distns
 
-    return _continuous_distns._distn_names + ["wrap"]
+    return _continuous_distns._distn_names + _discrete_distns._distn_names + ["wrap"]
 
 
 def __getattr__(name):
